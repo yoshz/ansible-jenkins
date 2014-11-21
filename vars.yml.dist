@@ -1,0 +1,8 @@
+aws_access_key: ~
+aws_secret_key: ~
+s3_backup_bucket: ~
+ssh_user: "{{ lookup('env', 'USERNAME') }}"
+apt_cache_valid_time: 0
+mysql_root_password: "root"
+packages:
+  - git

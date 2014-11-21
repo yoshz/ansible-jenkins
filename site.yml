@@ -1,0 +1,58 @@
+- hosts: jenkins
+  sudo: yes
+  vars_files:
+    - vars.yml
+  roles:
+    - { role: common, tags: common }
+    - { role: docker, tags: docker }
+  tasks:
+    - name: "Add docker group to current user"
+      shell: usermod -G docker -a {{ ssh_user }}
+
+    - name: "Create /var/data"
+      file: state=directory path=/var/data/www/html owner={{ ssh_user }} mode=0777
+
+    - name: "Start mysql docker container"
+      docker:
+        state: running
+        name: "mysql"
+        image: "mysql"
+        ports: "3306:3306"
+        env: "MYSQL_ROOT_PASSWORD={{ mysql_root_password }}"
+        volumes:
+          - "/var/data/mysql:/var/lib/mysql"
+      tags: mysql
+
+    - name: "Start apache docker container"
+      docker:
+        state: running
+        name: "apache-php"
+        image: "yoshz/jenkins-apache-php"
+        ports: 
+          - "8022:22"
+          - "8001:80"
+        volumes:
+          - "/var/data/www:/var/www"
+        links:
+          - "mysql:db"
+      tags: apache
+
+    - name: Configure firewall for Apache
+      ufw: rule=allow port=8001 proto=tcp
+      tags: apache
+
+    - name: "Start Jenkins docker container"
+      docker:
+        state: running
+        name: "jenkins"
+        image: "jenkins:weekly"
+        ports: "8080:8080"
+        privileged: yes
+        links:
+          - "apache-php"
+      tags: jenkins
+
+    - name: Configure firewall for Jenkins
+      ufw: rule=allow port=8080 proto=tcp
+      tags: jenkins
+

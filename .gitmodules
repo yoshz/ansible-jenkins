@@ -1,0 +1,6 @@
+[submodule "roles/docker"]
+	path = roles/docker
+	url = git@github.com:yoshz/ansible-role-docker.git
+[submodule "roles/common"]
+	path = roles/common
+	url = git@github.com:yoshz/ansible-role-common.git

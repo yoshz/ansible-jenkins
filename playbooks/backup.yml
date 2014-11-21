@@ -1,0 +1,23 @@
+- hosts: jenkins
+  sudo: yes
+  vars_files:
+    - ../vars.yml
+  tasks:
+    - name: "Create backup directory"
+      file: path=/tmp/backup state=directory
+
+    - name: "Upload backup script"
+      copy: src=../files/jenkins-backup.sh dest=/tmp/backup/jenkins-backup.sh mode=0755
+
+    - shell: echo jenkins-backup-`date +"%Y%m%d%H%M%S"`.tar.gz
+      register: backup_file
+    - set_fact: backup_file="{{ backup_file.stdout }}"
+
+    - name: "Run docker and create backup file"
+      shell: docker run --volumes-from=jenkins -v /tmp/backup:/tmp/backup --rm ubuntu /tmp/backup/jenkins-backup.sh /var/jenkins_home /tmp/backup/{{ backup_file }}
+
+    - name: "Upload backup file to S3"
+      s3: bucket={{ s3_backup_bucket }} aws_access_key={{ aws_access_key }} aws_secret_key={{ aws_secret_key }} object=/jenkins-backup-latest.tar.gz src=/tmp/backup/{{ backup_file }} mode=put
+
+    - name: "Remove backup file"
+      file: path=/tmp/backup/{{ backup_file }} state=absent

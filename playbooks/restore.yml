@@ -1,0 +1,25 @@
+- hosts: jenkins
+  sudo: yes
+  vars_files:
+    - ../vars.yml
+  tasks:
+    - name: "Create backup directory"
+      file: path=/tmp/backup state=directory
+
+    - name: "Upload restore script"
+      copy: src=../files/jenkins-restore.sh dest=/tmp/backup/jenkins-restore.sh mode=0755
+
+    - name: "Download backup file from S3"
+      s3: bucket={{ s3_backup_bucket }} aws_access_key={{ aws_access_key }} aws_secret_key={{ aws_secret_key }} object=/jenkins-backup-latest.tar.gz dest=/tmp/backup/jenkins-backup-latest.tar.gz mode=get
+
+    - name: "Stop jenkins"
+      shell: docker stop jenkins
+
+    - name: "Restore jenkins home directory"
+      shell: docker run --volumes-from=jenkins -v /tmp/backup:/tmp/backup --rm ubuntu /tmp/backup/jenkins-restore.sh /var/jenkins_home /tmp/backup/jenkins-backup-latest.tar.gz
+
+    - name: "Start jenkins"
+      shell: docker start jenkins
+
+    - name: "Remove backup file"
+      file: path=/tmp/backup/jenkins-backup-latest.tar.gz state=absent
