@@ -12,7 +12,7 @@
     - name: "Create /var/data"
       file: state=directory path=/var/data/www/html owner={{ ssh_user }} mode=0777
 
-    - name: "Start mysql docker container"
+    - name: "Start mysql container"
       docker:
         state: running
         name: "mysql"
@@ -23,22 +23,39 @@
           - "/var/data/mysql:/var/lib/mysql"
       tags: mysql
 
-    - name: "Start apache docker container"
+    - name: "Start web production container"
       docker:
         state: running
-        name: "apache-php"
-        image: "yoshz/jenkins-apache-php"
+        name: "web-prod"
+        image: "yoshz/apache-php"
         ports: 
           - "8022:22"
-          - "8001:80"
+          - "8000:80"
         volumes:
-          - "/var/data/www:/var/www"
+          - "/var/data/prod:/var/www"
         links:
           - "mysql:db"
+        env: "USER_CREATE=deploy,USER_PASSWORD=deploy"
       tags: apache
 
     - name: Configure firewall for Apache
-      ufw: rule=allow port=8001 proto=tcp
+      ufw: rule=allow port=8000 proto=tcp
+      tags: apache
+
+    - name: "Start web jenkins slave container"
+      docker:
+        state: running
+        name: "web-slave"
+        image: "yoshz/apache-php-dev"
+        ports:
+          - "3022:22"
+          - "3000:80"
+        volumes:
+          - "/var/data/dev:/var/www"
+        links:
+          - "mysql:db"
+          - "web-prod"
+        env: "USER_CREATE=jenkins,USER_PASSWORD=jenkins,GIT_NAME=jenkins,GIT_EMAIL=jenkins"
       tags: apache
 
     - name: "Start Jenkins docker container"
@@ -49,7 +66,7 @@
         ports: "8080:8080"
         privileged: yes
         links:
-          - "apache-php"
+          - "web-slave"
       tags: jenkins
 
     - name: Configure firewall for Jenkins
