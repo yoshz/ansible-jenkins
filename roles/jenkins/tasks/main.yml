@@ -1,0 +1,13 @@
+---
+
+- name: "Install jenkins apt key"
+  shell: "wget -q -O - http://pkg.jenkins-ci.org/debian/jenkins-ci.org.key | sudo apt-key add -"
+
+- name: "Install docker apt repository"
+  apt_repository: repo="deb http://pkg.jenkins-ci.org/debian binary/" state=present
+
+- name: "Install jenkins package"
+  apt: name=jenkins state=present
+
+- name: "Ensure jenkins is running"
+  service: name=jenkins state=started

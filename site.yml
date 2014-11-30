@@ -5,6 +5,7 @@
   roles:
     - { role: common, tags: common }
     - { role: docker, tags: docker }
+    - { role: jenkins, tags: jenkins }
   tasks:
     - name: "Add docker group to current user"
       shell: usermod -G docker -a {{ ssh_user }}
@@ -21,7 +22,7 @@
         env: "MYSQL_ROOT_PASSWORD={{ mysql_root_password }}"
         volumes:
           - "/var/data/mysql:/var/lib/mysql"
-      tags: mysql
+      tags: container
 
     - name: "Start web production container"
       docker:
@@ -35,17 +36,34 @@
           - "/var/data/prod:/var/www"
         links:
           - "mysql:db"
-        env: "USER_CREATE=deploy,USER_PASSWORD=deploy"
-      tags: apache
-
+        env: "USER_CREATE=deploy,USER_PUBLIC_KEY=\"{{ deploy_public_key }}\""
+      tags: container
     - name: Configure firewall for Apache
       ufw: rule=allow port=8000 proto=tcp
-      tags: apache
+      tags: firewall
 
-    - name: "Start web jenkins slave container"
+    - name: "Start web staging container"
       docker:
         state: running
-        name: "web-slave"
+        name: "web-staging"
+        image: "yoshz/apache-php"
+        ports: 
+          - "7022:22"
+          - "7000:80"
+        volumes:
+          - "/var/data/prod:/var/www"
+        links:
+          - "mysql:db"
+        env: "USER_CREATE=deploy,USER_PUBLIC_KEY=\"{{ deploy_public_key }}\""
+      tags: container
+    - name: Configure firewall for Apache
+      ufw: rule=allow port=7000 proto=tcp
+      tags: firewall
+
+    - name: "Start web dev container"
+      docker:
+        state: running
+        name: "web-dev"
         image: "yoshz/apache-php-dev"
         ports:
           - "3022:22"
@@ -54,22 +72,12 @@
           - "/var/data/dev:/var/www"
         links:
           - "mysql:db"
+          - "web-staging"
           - "web-prod"
-        env: "USER_CREATE=jenkins,USER_PASSWORD=jenkins,GIT_NAME=jenkins,GIT_EMAIL=jenkins"
-      tags: apache
-
-    - name: "Start Jenkins docker container"
-      docker:
-        state: running
-        name: "jenkins"
-        image: "jenkins:weekly"
-        ports: "8080:8080"
-        privileged: yes
-        links:
-          - "web-slave"
-      tags: jenkins
+        env: "USER_CREATE=deploy,USER_PUBLIC_KEY=\"{{ deploy_public_key }}\",GIT_NAME=jenkins,GIT_EMAIL=jenkins"
+      tags: container
 
     - name: Configure firewall for Jenkins
       ufw: rule=allow port=8080 proto=tcp
-      tags: jenkins
+      tags: firewall
 

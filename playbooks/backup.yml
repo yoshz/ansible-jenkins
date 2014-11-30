@@ -17,7 +17,7 @@
     - set_fact: backup_file="{{ backup_file.stdout }}"
 
     - name: "Run docker and create backup file"
-      shell: docker run --volumes-from=jenkins -v /tmp/backup:/tmp/backup --rm ubuntu /tmp/backup/jenkins-backup.sh /var/jenkins_home /tmp/backup/{{ backup_file }}
+      shell: /tmp/backup/jenkins-backup.sh /var/lib/jenkins /tmp/backup/{{ backup_file }}
 
     - name: "Upload backup file to S3"
       s3: bucket={{ s3_backup_bucket }} aws_access_key={{ aws_access_key }} aws_secret_key={{ aws_secret_key }} object=/jenkins-backup-latest.tar.gz src=/tmp/backup/{{ backup_file }} mode=put
