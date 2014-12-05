@@ -16,7 +16,7 @@
       register: backup_file
     - set_fact: backup_file="{{ backup_file.stdout }}"
 
-    - name: "Run docker and create backup file"
+    - name: "Create backup file"
       shell: /tmp/backup/jenkins-backup.sh /var/lib/jenkins /tmp/backup/{{ backup_file }}
 
     - name: "Upload backup file to S3"

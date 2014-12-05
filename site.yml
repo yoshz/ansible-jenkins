@@ -51,7 +51,7 @@
           - "7022:22"
           - "7000:80"
         volumes:
-          - "/var/data/prod:/var/www"
+          - "/var/data/staging:/var/www"
         links:
           - "mysql:db"
         env: "USER_CREATE=deploy,USER_PUBLIC_KEY=\"{{ deploy_public_key }}\""
