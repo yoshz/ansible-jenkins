@@ -10,18 +10,26 @@
     - name: "Add docker group to current user"
       shell: usermod -G docker -a {{ ssh_user }}
 
-    - name: "Create /var/data"
-      file: state=directory path=/var/data/www/html owner={{ ssh_user }} mode=0777
-
-    - name: "Start mysql container"
+    - name: "Start mysql production container"
       docker:
         state: running
-        name: "mysql"
+        name: "mysql-prod"
         image: "mysql"
-        ports: "3306:3306"
+        ports: "8306:3306"
         env: "MYSQL_ROOT_PASSWORD={{ mysql_root_password }}"
         volumes:
-          - "/var/data/mysql:/var/lib/mysql"
+          - "/var/data/mysql-prod:/var/lib/mysql"
+      tags: container
+
+    - name: "Start mysql staging container"
+      docker:
+        state: running
+        name: "mysql-staging"
+        image: "mysql"
+        ports: "7306:3306"
+        env: "MYSQL_ROOT_PASSWORD={{ mysql_root_password }}"
+        volumes:
+          - "/var/data/mysql-staging:/var/lib/mysql"
       tags: container
 
     - name: "Start web production container"
@@ -35,7 +43,7 @@
         volumes:
           - "/var/data/prod:/var/www"
         links:
-          - "mysql:db"
+          - "mysql-prod:db"
         env: "USER_CREATE=deploy,USER_PUBLIC_KEY=\"{{ deploy_public_key }}\""
       tags: container
     - name: Configure firewall for Apache
@@ -53,7 +61,7 @@
         volumes:
           - "/var/data/staging:/var/www"
         links:
-          - "mysql:db"
+          - "mysql-staging:db"
         env: "USER_CREATE=deploy,USER_PUBLIC_KEY=\"{{ deploy_public_key }}\""
       tags: container
     - name: Configure firewall for Apache
@@ -71,7 +79,6 @@
         volumes:
           - "/var/data/dev:/var/www"
         links:
-          - "mysql:db"
           - "web-staging"
           - "web-prod"
         env: "USER_CREATE=deploy,USER_PUBLIC_KEY=\"{{ deploy_public_key }}\",GIT_NAME=jenkins,GIT_EMAIL=jenkins"
